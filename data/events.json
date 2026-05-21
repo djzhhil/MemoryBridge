@@ -1,0 +1,268 @@
+{
+  "events": [
+    {
+      "id": "evt_20260521_122910_ddced6",
+      "app": "douyin",
+      "event": "open",
+      "timestamp": 1779337750,
+      "iso_time": "2026年5月21日 12:29",
+      "date": "2026-05-21"
+    },
+    {
+      "id": "evt_20260521_122921_0d98ca",
+      "app": "douyin",
+      "event": "close",
+      "timestamp": 1779337761,
+      "iso_time": "2026年5月21日 12:29",
+      "date": "2026-05-21"
+    },
+    {
+      "id": "evt_20260521_124342_4aa8cb",
+      "app": "douyin",
+      "event": "open",
+      "timestamp": 1779338622,
+      "iso_time": "2026年5月21日 12:43",
+      "date": "2026-05-21"
+    },
+    {
+      "id": "evt_20260521_124404_8fd87e",
+      "app": "douyin",
+      "event": "close",
+      "timestamp": 1779338644,
+      "iso_time": "2026年5月21日 12:44",
+      "date": "2026-05-21"
+    },
+    {
+      "id": "evt_20260521_132423_61c880",
+      "app": "douyin",
+      "event": "open",
+      "timestamp": 1779341063,
+      "iso_time": "2026年5月21日 13:24",
+      "date": "2026-05-21"
+    },
+    {
+      "id": "evt_20260521_132547_c136a6",
+      "app": "douyin",
+      "event": "close",
+      "timestamp": 1779341147,
+      "iso_time": "2026年5月21日 13:25",
+      "date": "2026-05-21"
+    },
+    {
+      "id": "evt_20260521_133749_0fc212",
+      "app": "douyin",
+      "event": "open",
+      "timestamp": 1779341869,
+      "iso_time": "2026年5月21日 13:37",
+      "date": "2026-05-21"
+    },
+    {
+      "id": "evt_20260521_134156_e1c83e",
+      "app": "douyin",
+      "event": "close",
+      "timestamp": 1779342116,
+      "iso_time": "2026年5月21日 13:41",
+      "date": "2026-05-21"
+    },
+    {
+      "id": "evt_20260521_135501_782272",
+      "app": "douyin",
+      "event": "open",
+      "timestamp": 1779342901,
+      "iso_time": "2026年5月21日 13:55",
+      "date": "2026-05-21"
+    },
+    {
+      "id": "evt_20260521_140000_0f6e4a",
+      "app": "douyin",
+      "event": "close",
+      "timestamp": 1779343200,
+      "iso_time": "2026年5月21日 13:59",
+      "date": "2026-05-21"
+    },
+    {
+      "id": "evt_20260521_140518_9ca340",
+      "app": "weixin",
+      "event": "open",
+      "timestamp": 1779343518,
+      "iso_time": "2026年5月21日 14:05",
+      "date": "2026-05-21"
+    },
+    {
+      "id": "evt_20260521_140527_5a3d9e",
+      "app": "weixin",
+      "event": "close",
+      "timestamp": 1779343527,
+      "iso_time": "2026年5月21日 14:05",
+      "date": "2026-05-21"
+    },
+    {
+      "id": "evt_20260521_140538_b7eab3",
+      "app": "weixin",
+      "event": "open",
+      "timestamp": 1779343538,
+      "iso_time": "2026年5月21日 14:05",
+      "date": "2026-05-21"
+    },
+    {
+      "id": "evt_20260521_140540_1d863e",
+      "app": "weixin",
+      "event": "close",
+      "timestamp": 1779343540,
+      "iso_time": "2026年5月21日 14:05",
+      "date": "2026-05-21"
+    },
+    {
+      "id": "evt_20260521_140548_9c46a0",
+      "app": "weixin",
+      "event": "close",
+      "timestamp": 1779343548,
+      "iso_time": "2026年5月21日 14:05",
+      "date": "2026-05-21"
+    },
+    {
+      "id": "evt_20260521_141142_3a2e7e",
+      "app": "weixin",
+      "event": "open",
+      "timestamp": 1779343902,
+      "iso_time": "2026年5月21日 14:11",
+      "date": "2026-05-21"
+    },
+    {
+      "id": "evt_20260521_141149_40f8c7",
+      "app": "weixin",
+      "event": "close",
+      "timestamp": 1779343909,
+      "iso_time": "2026年5月21日 14:11",
+      "date": "2026-05-21"
+    },
+    {
+      "id": "evt_20260521_141150_73b614",
+      "app": "douyin",
+      "event": "open",
+      "timestamp": 1779343910,
+      "iso_time": "2026年5月21日 14:11",
+      "date": "2026-05-21"
+    },
+    {
+      "id": "evt_20260521_141442_1043c8",
+      "app": "douyin",
+      "event": "close",
+      "timestamp": 1779344082,
+      "iso_time": "2026年5月21日 14:14",
+      "date": "2026-05-21"
+    },
+    {
+      "id": "evt_20260521_142422_84f65a",
+      "app": "weixin",
+      "event": "open",
+      "timestamp": 1779344662,
+      "iso_time": "2026年5月21日 14:24",
+      "date": "2026-05-21"
+    },
+    {
+      "id": "evt_20260521_142430_3c28f4",
+      "app": "weixin",
+      "event": "close",
+      "timestamp": 1779344670,
+      "iso_time": "2026年5月21日 14:24",
+      "date": "2026-05-21"
+    },
+    {
+      "id": "evt_20260521_143847_8658f4",
+      "app": "weixin",
+      "event": "open",
+      "timestamp": 1779345527,
+      "iso_time": "2026年5月21日 14:38",
+      "date": "2026-05-21"
+    },
+    {
+      "id": "evt_20260521_143851_559a12",
+      "app": "weixin",
+      "event": "close",
+      "timestamp": 1779345531,
+      "iso_time": "2026年5月21日 14:38",
+      "date": "2026-05-21"
+    },
+    {
+      "id": "evt_20260521_144132_e6c9d5",
+      "app": "telegram",
+      "event": "open",
+      "timestamp": 1779345692,
+      "iso_time": "2026年5月21日 14:41",
+      "date": "2026-05-21"
+    },
+    {
+      "id": "evt_20260521_144141_a34a96",
+      "app": "telegram",
+      "event": "open",
+      "timestamp": 1779345701,
+      "iso_time": "2026年5月21日 14:41",
+      "date": "2026-05-21"
+    },
+    {
+      "id": "evt_20260521_144141_8748e5",
+      "app": "telegram",
+      "event": "close",
+      "timestamp": 1779345701,
+      "iso_time": "2026年5月21日 14:41",
+      "date": "2026-05-21"
+    },
+    {
+      "id": "evt_20260521_145024_1401af",
+      "app": "douyin",
+      "event": "open",
+      "timestamp": 1779346224,
+      "iso_time": "2026年5月21日 14:50",
+      "date": "2026-05-21"
+    },
+    {
+      "id": "evt_20260521_145456_da82b5",
+      "app": "douyin",
+      "event": "close",
+      "timestamp": 1779346496,
+      "iso_time": "2026年5月21日 14:54",
+      "date": "2026-05-21"
+    },
+    {
+      "id": "evt_20260521_145731_e8d3ed",
+      "app": "weixin",
+      "event": "open",
+      "timestamp": 1779346651,
+      "iso_time": "2026年5月21日 14:57",
+      "date": "2026-05-21"
+    },
+    {
+      "id": "evt_20260521_145807_7115bb",
+      "app": "weixin",
+      "event": "close",
+      "timestamp": 1779346687,
+      "iso_time": "2026年5月21日 14:58",
+      "date": "2026-05-21"
+    },
+    {
+      "id": "evt_20260521_151048_79c9e8",
+      "app": "weixin",
+      "event": "open",
+      "timestamp": 1779347448,
+      "iso_time": "2026年5月21日 15:10",
+      "date": "2026-05-21"
+    },
+    {
+      "id": "evt_20260521_151103_38d84e",
+      "app": "weixin",
+      "event": "close",
+      "timestamp": 1779347463,
+      "iso_time": "2026年5月21日 15:11",
+      "date": "2026-05-21"
+    },
+    {
+      "id": "evt_20260521_151441_d36157",
+      "app": "douyin",
+      "event": "open",
+      "timestamp": 1779347681,
+      "iso_time": "2026年5月21日 15:14",
+      "date": "2026-05-21"
+    }
+  ]
+}
