@@ -3,3 +3,4 @@ __pycache__/
 *.pyc
 data/events.json.bak
 .ssh/
+data/events.json
