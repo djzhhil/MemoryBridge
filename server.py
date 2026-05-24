@@ -1,67 +1,41 @@
 #!/usr/bin/env python3
 """
-Shortcut Server — 纯事件存储 + 统计查询
-
-接收 iOS Shortcut POST → 存 events.json + JSONL
-供智能体查询与分析
+Shortcut Server — 统一 JSONL 存储（按设备/日期分片）
+完全兼容旧 /hook 接口（open/close 事件）
 """
 
 import json
 import os
 import re
-import time
 import uuid
-from datetime import datetime, date, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from flask import Flask, request, jsonify
 
+# ---------- 常量 ----------
 CST = timezone(timedelta(hours=8))
 BASE_DIR = Path(__file__).parent
 DATA_DIR = BASE_DIR / "data"
 DATA_DIR.mkdir(exist_ok=True)
-EVENTS_FILE = DATA_DIR / "events.json"
+
 EVENTS_JSONL_ROOT = DATA_DIR / "events"
 EVENTS_JSONL_ROOT.mkdir(exist_ok=True, parents=True)
 
 API_KEY = os.getenv("API_KEY", "").strip()
 LEGACY_DEVICE_ID = "legacy"
 ALLOWED_EVENT_TYPES = {
-    "scheduled",
-    "geofence",
-    "power",
-    "connectivity",
-    "focus_change",
-    "sound_recognition",
-    "app_opened",
-    "legacy",
+    "scheduled", "geofence", "power", "connectivity",
+    "focus_change", "sound_recognition", "app_opened", "legacy"
 }
 
-# ============================================================
-# 存储
-# ============================================================
-
-def load_events():
-    try:
-        with open(EVENTS_FILE, "r") as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return {"events": []}
-
-
-def save_events(data):
-    with open(EVENTS_FILE, "w") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-
+# ---------- 辅助函数 ----------
 def today_str():
     return datetime.now(CST).strftime("%Y-%m-%d")
-
 
 def sanitize_device_id(device_id):
     device_id = str(device_id or "").strip()
     return re.sub(r"[^A-Za-z0-9._-]", "_", device_id) or LEGACY_DEVICE_ID
-
 
 def get_device_events_dir(device_id):
     safe_id = sanitize_device_id(device_id)
@@ -69,12 +43,11 @@ def get_device_events_dir(device_id):
     path.mkdir(exist_ok=True, parents=True)
     return path
 
-
 def get_jsonl_path(device_id, date_str):
     return get_device_events_dir(device_id) / f"{date_str}.jsonl"
 
-
 def parse_iso_timestamp(timestamp_str):
+    """解析 ISO 8601 时间字符串，返回 datetime（带时区）"""
     if not isinstance(timestamp_str, str):
         raise ValueError("timestamp must be a string")
     ts = timestamp_str.strip()
@@ -82,23 +55,24 @@ def parse_iso_timestamp(timestamp_str):
         ts = ts[:-1] + "+00:00"
     return datetime.fromisoformat(ts)
 
-
-def event_date_str_from_timestamp(timestamp_str):
-    return parse_iso_timestamp(timestamp_str).date().isoformat()
-
-
 def append_event_jsonl(event):
+    """写入一条事件到 JSONL 文件（按设备+日期分片）"""
     device_id = sanitize_device_id(event.get("device_id"))
     timestamp = event.get("timestamp")
     if not timestamp:
         raise ValueError("event.timestamp is required")
-    date_str = event_date_str_from_timestamp(timestamp)
+    # 支持 timestamp 为 ISO 字符串或 Unix 时间戳（整数）
+    if isinstance(timestamp, (int, float)):
+        dt = datetime.fromtimestamp(timestamp, tz=CST)
+        date_str = dt.date().isoformat()
+    else:
+        date_str = parse_iso_timestamp(timestamp).date().isoformat()
     path = get_jsonl_path(device_id, date_str)
     with open(path, "a", encoding="utf-8") as f:
         f.write(json.dumps(event, ensure_ascii=False) + "\n")
 
-
 def read_events_jsonl(device_id, from_date=None, to_date=None):
+    """查询某个设备指定日期范围内的事件（返回列表）"""
     path = get_device_events_dir(device_id)
     if from_date:
         from_date = datetime.strptime(from_date, "%Y-%m-%d").date()
@@ -123,8 +97,8 @@ def read_events_jsonl(device_id, from_date=None, to_date=None):
                     continue
     return events
 
-
 def read_latest_event(device_id, event_type=None):
+    """读取某个设备最新的一条事件（可筛选 event_type）"""
     path = get_device_events_dir(device_id)
     files = sorted(path.glob("*.jsonl"), reverse=True)
     latest = None
@@ -140,8 +114,13 @@ def read_latest_event(device_id, event_type=None):
                     continue
                 if event_type and event.get("event_type") != event_type:
                     continue
+                # 解析 timestamp（可能是 ISO 字符串或 Unix 时间戳）
+                ts_raw = event.get("timestamp")
                 try:
-                    ts = parse_iso_timestamp(event.get("timestamp"))
+                    if isinstance(ts_raw, (int, float)):
+                        ts = datetime.fromtimestamp(ts_raw, tz=CST)
+                    else:
+                        ts = parse_iso_timestamp(ts_raw)
                 except Exception:
                     continue
                 if latest is None or ts > latest_ts:
@@ -151,6 +130,144 @@ def read_latest_event(device_id, event_type=None):
             break
     return latest
 
+def compute_stats_from_jsonl(device_id, app_name=None, period="today"):
+    """
+    从 JSONL 中统计指定 app 的使用情况（兼容 open/close 和 opened/closed）
+    """
+    now = datetime.now(CST)
+    if period == "today":
+        start_date = now.date()
+    elif period == "week":
+        start_date = (now - timedelta(days=now.weekday())).date()
+    else:
+        start_date = None
+
+    events = read_events_jsonl(device_id, from_date=start_date.isoformat() if start_date else None)
+    
+    # 过滤出 app 事件（legacy 类型且 data 中有 app）
+    app_events = []
+    for ev in events:
+        if ev.get("event_type") not in ("legacy", "app_opened"):
+            continue
+        data = ev.get("data", {})
+        app = data.get("app")
+        if not app:
+            continue
+        if app_name and app != app_name:
+            continue
+        ts_raw = ev.get("timestamp")
+        if isinstance(ts_raw, (int, float)):
+            dt = datetime.fromtimestamp(ts_raw, tz=CST)
+        else:
+            try:
+                dt = parse_iso_timestamp(ts_raw)
+            except Exception:
+                continue
+        app_events.append({
+            "app": app,
+            "event": data.get("event"),  # 可能是 "open"/"close" 或 "opened"/"closed"
+            "timestamp": dt,
+            "iso_time": dt.isoformat()
+        })
+    
+    from collections import defaultdict
+    grouped = defaultdict(lambda: {"opens": [], "closes": []})
+    for e in app_events:
+        ev = e["event"]
+        if ev in ("open", "opened"):
+            grouped[e["app"]]["opens"].append(e)
+        elif ev in ("close", "closed"):
+            grouped[e["app"]]["closes"].append(e)
+        # 其他值忽略
+    
+    stats = {}
+    for app, data in grouped.items():
+        opens = sorted(data["opens"], key=lambda x: x["timestamp"])
+        closes = sorted(data["closes"], key=lambda x: x["timestamp"])
+        sessions = []
+        ci = 0
+        for o in opens:
+            while ci < len(closes) and closes[ci]["timestamp"] < o["timestamp"]:
+                ci += 1
+            if ci < len(closes):
+                dur = (closes[ci]["timestamp"] - o["timestamp"]).total_seconds()
+                if 0 < dur < 43200:
+                    sessions.append({
+                        "time": o["iso_time"],
+                        "dur_sec": dur,
+                    })
+                ci += 1
+        total_sec = sum(s["dur_sec"] for s in sessions)
+        stats[app] = {
+            "date": today_str(),
+            "opens": len(opens),
+            "closes": len(closes),
+            "sessions": len(sessions),
+            "total_sec": total_sec,
+            "total_min": round(total_sec / 60, 1),
+            "session_details": sessions,
+        }
+    return stats
+
+def compute_stats_for_all_apps(device_id, period):
+    """一次性统计所有 app，兼容 open/close 和 opened/closed"""
+    now = datetime.now(CST)
+    if period == "today":
+        start_date = now.date()
+    elif period == "week":
+        start_date = (now - timedelta(days=now.weekday())).date()
+    else:
+        start_date = None
+
+    events = read_events_jsonl(device_id, from_date=start_date.isoformat() if start_date else None)
+    from collections import defaultdict
+    app_events = defaultdict(list)
+    for ev in events:
+        if ev.get("event_type") not in ("legacy", "app_opened"):
+            continue
+        data = ev.get("data", {})
+        app = data.get("app")
+        if not app:
+            continue
+        ts_raw = ev.get("timestamp")
+        if isinstance(ts_raw, (int, float)):
+            dt = datetime.fromtimestamp(ts_raw, tz=CST)
+        else:
+            try:
+                dt = parse_iso_timestamp(ts_raw)
+            except Exception:
+                continue
+        app_events[app].append({
+            "event": data.get("event"),
+            "timestamp": dt,
+            "iso_time": dt.isoformat()
+        })
+    
+    result = {}
+    for app, evs in app_events.items():
+        opens = sorted([e for e in evs if e["event"] in ("open", "opened")], key=lambda x: x["timestamp"])
+        closes = sorted([e for e in evs if e["event"] in ("close", "closed")], key=lambda x: x["timestamp"])
+        sessions = []
+        ci = 0
+        for o in opens:
+            while ci < len(closes) and closes[ci]["timestamp"] < o["timestamp"]:
+                ci += 1
+            if ci < len(closes):
+                dur = (closes[ci]["timestamp"] - o["timestamp"]).total_seconds()
+                if 0 < dur < 43200:
+                    sessions.append({"time": o["iso_time"], "dur_sec": dur})
+                ci += 1
+        total_sec = sum(s["dur_sec"] for s in sessions)
+        result[app] = {
+            "date": today_str(),
+            "opens": len(opens),
+            "closes": len(closes),
+            "sessions": len(sessions),
+            "total_sec": total_sec,
+            "total_min": round(total_sec / 60, 1),
+            "session_details": sessions,
+        }
+    return result
 
 def require_api_key():
     if not API_KEY:
@@ -160,81 +277,20 @@ def require_api_key():
         return jsonify({"status": "error", "message": "Unauthorized"}), 401
     return None
 
-# ============================================================
-# 统计
-# ============================================================
-
-def compute_stats(app_filter=None, period="today"):
-    events = load_events()["events"]
-    now = datetime.now(CST)
-    today = today_str()
-
-    if period == "today":
-        start_ts = int(datetime(now.year, now.month, now.day, tzinfo=CST).timestamp())
-    elif period == "week":
-        start_ts = int((now - timedelta(days=now.weekday())).replace(
-            hour=0, minute=0, second=0, microsecond=0).timestamp())
-    else:
-        start_ts = 0
-
-    filtered = [e for e in events if e.get("timestamp", 0) >= start_ts]
-    if app_filter and app_filter != "all":
-        filtered = [e for e in filtered if e.get("app") == app_filter]
-
-    from collections import defaultdict
-
-    grouped = defaultdict(lambda: {"opens": [], "closes": []})
-    for e in filtered:
-        grouped[e.get("app", "unknown")][f"{e['event']}s"].append(e)
-
-    stats = {}
-    for app, data in grouped.items():
-        opens = sorted(data["opens"], key=lambda x: x["timestamp"])
-        closes = sorted(data["closes"], key=lambda x: x["timestamp"])
-
-        sessions = []
-        ci = 0
-        for o in opens:
-            while ci < len(closes) and closes[ci]["timestamp"] < o["timestamp"]:
-                ci += 1
-            if ci < len(closes):
-                dur = closes[ci]["timestamp"] - o["timestamp"]
-                if 0 < dur < 43200:
-                    sessions.append({
-                        "time": o.get("iso_time", ""),
-                        "dur_sec": dur,
-                    })
-                ci += 1
-
-        total_sec = sum(s["dur_sec"] for s in sessions)
-        stats[app] = {
-            "date": today,
-            "opens": len(opens),
-            "closes": len(closes),
-            "sessions": len(sessions),
-            "total_sec": total_sec,
-            "total_min": round(total_sec / 60, 1),
-            "session_details": sessions,
-        }
-
-    return stats
-
-# ============================================================
-# HTTP 端点
-# ============================================================
-
+# ---------- Flask 路由 ----------
 app = Flask(__name__)
 
 @app.route("/hook", methods=["POST"])
 def hook():
-    """接收 Shortcut 事件 → 存盘"""
+    """兼容旧版 iOS 快捷指令：接收 {app, event, time, device_id} 并写入 JSONL"""
     data = request.get_json(force=True, silent=True)
     if not data:
         return jsonify({"status": "error", "message": "无效 JSON"}), 400
 
     app_name = data.get("app", "").strip()
-    event_type = data.get("event", "").strip()
+    event_type = data.get("event", "").strip()  # "open" / "close"
     iso_time = data.get("time", "")
+    device_id = data.get("device_id", LEGACY_DEVICE_ID)
 
     if not app_name or not event_type:
         return jsonify({"status": "error", "message": "缺少 app / event"}), 400
@@ -242,26 +298,9 @@ def hook():
     if not iso_time:
         iso_time = datetime.now(CST).isoformat()
 
-    ts = int(time.time())
-    evt = {
-        "id": f"evt_{datetime.now(CST).strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}",
-        "app": app_name,
-        "event": event_type,
-        "timestamp": ts,
-        "iso_time": iso_time,
-        "date": today_str(),
-    }
-
-    events = load_events()
-    events["events"].append(evt)
-
-    cutoff = time.time() - 7 * 86400
-    events["events"] = [e for e in events["events"] if e.get("timestamp", 0) >= cutoff]
-    save_events(events)
-
-    legacy_device_id = data.get("device_id") or LEGACY_DEVICE_ID
+    # 构造新格式的事件，存入 JSONL
     jsonl_event = {
-        "device_id": legacy_device_id,
+        "device_id": device_id,
         "event_type": "legacy",
         "timestamp": iso_time,
         "data": {
@@ -273,13 +312,14 @@ def hook():
     }
     try:
         append_event_jsonl(jsonl_event)
-    except Exception:
-        pass
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"写入失败: {e}"}), 500
 
-    return jsonify({"status": "ok", "event_id": evt["id"]})
+    return jsonify({"status": "ok", "event_id": str(uuid.uuid4())})
 
 @app.route("/api/events", methods=["POST"])
 def api_events():
+    """新接口：直接写入标准事件（需要 API_KEY 验证）"""
     auth_err = require_api_key()
     if auth_err:
         return auth_err
@@ -325,7 +365,6 @@ def get_device_events(device_id):
         events = read_events_jsonl(device_id, from_date=from_date, to_date=to_date)
     except ValueError:
         return jsonify({"status": "error", "message": "from/to 日期格式应为 YYYY-MM-DD"}), 400
-
     return jsonify({"status": "ok", "events": events})
 
 @app.route("/api/events/<device_id>/latest", methods=["GET"])
@@ -333,7 +372,6 @@ def get_latest_device_event(device_id):
     event_type = request.args.get("event_type")
     if event_type and event_type not in ALLOWED_EVENT_TYPES:
         return jsonify({"status": "error", "message": "不支持的 event_type"}), 400
-
     latest = read_latest_event(device_id, event_type=event_type)
     if not latest:
         return jsonify({"status": "error", "message": "未找到事件"}), 404
@@ -341,18 +379,20 @@ def get_latest_device_event(device_id):
 
 @app.route("/stats", methods=["GET"])
 def stats():
-    return jsonify(compute_stats(
-        app_filter=request.args.get("app", "all"),
-        period=request.args.get("period", "today"),
-    ))
+    device_id = request.args.get("device_id", LEGACY_DEVICE_ID)
+    app_name = request.args.get("app", "all")
+    period = request.args.get("period", "today")
+    
+    if app_name == "all":
+        stats_data = compute_stats_for_all_apps(device_id, period)
+        return jsonify(stats_data)
+    else:
+        stats_data = compute_stats_from_jsonl(device_id, app_name, period)
+        return jsonify(stats_data)
 
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok", "time": datetime.now(CST).isoformat()})
-
-# ============================================================
-# 启动
-# ============================================================
 
 if __name__ == "__main__":
     host = "0.0.0.0"
